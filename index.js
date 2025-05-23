@@ -1,0 +1,20 @@
+require('dotenv').config();
+const supabase = require('./supabaseClient');
+const express = require('express');
+const cors = require('cors');
+const userRoutes  = require('./Routes/userRoutes');
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+
+app.use('/api', userRoutes)
+
+// Start Server
+const PORT = process.env.PORT;
+app.listen(PORT, ()=>{
+    console.log(`Server Listening on PORT ${PORT}`)
+});
+
+
+
