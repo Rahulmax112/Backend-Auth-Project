@@ -1,4 +1,8 @@
-const { sendOTPEmail, checkIfUserExist, sendOTPMobile } = require("../services/userService");
+const {
+  sendOTPEmail,
+  checkIfUserExist,
+  sendOTPMobile,
+} = require("../services/userService");
 const supabase = require("../supabaseClient");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -16,17 +20,30 @@ const SignUp = async (req, res) => {
 
   const userId = signUpData.user.id;
 
+  const { error: profileError } = await supabase.from("profiles").insert([
+    {
+      id: userId,
+      full_name: null,
+      gender: null,
+      dob: null,
+      avatar_url: null,
+      addresses: [],
+    },
+  ]);
+
+  if (profileError) {
+    return res.status(400).json({ message: profileError.message });
+  }
+
   const infoUpdate = await supabase.auth.admin.updateUserById(userId, {
-    phone: phone,
+    phone: phone || null,
     user_metadata: {
-      role: role,
+      role: role || null,
     },
   });
 
   if (!infoUpdate) {
-    return res
-      .status(400)
-      .json({ message: infoUpdate.error });
+    return res.status(400).json({ message: infoUpdate.error });
   }
 
   res.status(200).json({
@@ -54,23 +71,16 @@ const Login = async (req, res) => {
 
   const userId = signInData.user.id;
 
-  const { data: profileData, error: profileError } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userId);
-
-  if (profileError) {
-    res.status(400).json({ error: profileError.message });
-  }
+  const role = signInData.user.user_metadata.role;
 
   const token = jwt.sign(
     {
       id: userId,
       email,
-      role: profileData.role,
+      role: role,
     },
     process.env.JWT_SECRET_KEY,
-    { expiresIn: "1hr" }
+    { expiresIn: "1h" }
   );
 
   res.cookie("token", token, {
@@ -85,7 +95,7 @@ const Login = async (req, res) => {
     user: {
       id: userId,
       email,
-      role: profileData.role,
+      role: role,
     },
   });
 };
@@ -104,9 +114,8 @@ const sendOtpToEmailOrPhone = async (req, res) => {
   try {
     const { email, phone } = req.body;
 
-    console.log(email, phone, "  <-request")
+    console.log(email, phone, "  <-request");
     const userId = await checkIfUserExist(email, phone);
-    
 
     if (!userId) {
       res
@@ -117,10 +126,10 @@ const sendOtpToEmailOrPhone = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000);
     const otpExpiry = new Date(Date.now() + 1 * 60 * 1000).toISOString();
 
-    let otpSent = false
-    if(email){
-     otpSent = await sendOTPEmail(email, otp);
-    } else if(phone){
+    let otpSent = false;
+    if (email) {
+      otpSent = await sendOTPEmail(email, otp);
+    } else if (phone) {
       otpSent = await sendOTPMobile(phone, otp);
     }
 
@@ -135,17 +144,17 @@ const sendOtpToEmailOrPhone = async (req, res) => {
       },
     });
 
-    if(email){
-    res.status(200).json({
-      sucess: true,
-      message: "OTP successfully sent to your email.",
-    });
-  } else if(phone){
-    res.status(200).json({
-      sucess:true, 
-      message:"OTP successfully sent to your Mobile Number."
-    })
-  }
+    if (email) {
+      res.status(200).json({
+        sucess: true,
+        message: "OTP successfully sent to your email.",
+      });
+    } else if (phone) {
+      res.status(200).json({
+        sucess: true,
+        message: "OTP successfully sent to your Mobile Number.",
+      });
+    }
   } catch (e) {
     console.log(e);
   }
@@ -242,8 +251,6 @@ const resetPassword = async (req, res) => {
     message: "Password reset sucessfully",
   });
 };
-
-
 
 module.exports = {
   SignUp,

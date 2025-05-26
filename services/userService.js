@@ -23,7 +23,7 @@ const sendOTPMobile = async (mobileNumber, otp) => {
   let msgOptions = {
     from: process.env.TWILIO_PHONE_NUMBER,
     to: mobileNumber,
-    body: `Your OTP code is ${otp}. It will expire in 1 minutes. Do not share it with anyone.`
+    body: `Your OTP code is ${otp}. It will expire in 1 minutes. Do not share it with anyone.`,
   };
 
   try {
@@ -62,7 +62,7 @@ const checkIfUserExist = async (email, phone) => {
   try {
     const { data, error } = await supabase.auth.admin.listUsers();
 
-    console.log(email, phone, "service")
+    console.log(email, phone, "service");
     let user;
     if (email) {
       user = data.users.find((user) => user.email === email);
@@ -83,4 +83,48 @@ const checkIfUserExist = async (email, phone) => {
   }
 };
 
-module.exports = { checkIfUserExist, sendOTPEmail, sendOTPMobile };
+const updateProfile = async (
+  userId,
+  { full_name, gender, dob, avatar_url, addresses }
+) => {
+  try {
+    const updateData = { full_name, gender, dob, avatar_url, addresses };
+
+    Object.keys(updateData).forEach((key) => {
+      if (updateData[key] === undefined || updateData[key] === "") {
+        delete updateData[key];
+      }
+    });
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .update(updateData)
+      .eq("id", userId);
+
+    if (error) throw new Error(error.message);
+
+    return true;
+  } catch (e) {
+    console.log(e);
+    throw e;
+  }
+};
+
+const getProfile = async (userId) => {
+  try {
+    const { data, error } = await supabase.from("profiles").select("*").eq("id", userId)
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  } catch (e) {
+    res.status(500).json({message:"Something went wrong"});
+  }
+};
+
+module.exports = {
+  checkIfUserExist,
+  sendOTPEmail,
+  sendOTPMobile,
+  updateProfile,
+  getProfile,
+};
